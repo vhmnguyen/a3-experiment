@@ -1,113 +1,74 @@
-Assignment 3 - Replicating a Classic Experiment  
-===
+# CS 4804 A3: How Does Visual Encoding Affect Value Comparison?
 
-For the scope of this project, assume the role of a scientist who runs experiments for a living.
+**Experiment link:** [ADD GITHUB PAGES LINK]
 
-For example: 
+## Research question
 
-Q: How do we know that bar charts are "better" than pie charts?  
-A: Controlled experiments!
+Which visual encoding makes it easiest for people to estimate the relative sizes of two values?
 
-In this assignment you'll implement a simple controlled experiment using some of the visualizations you’ve been building in this class. 
-You'll need to develop support code for the experiment sequence, results file output, and other experiment components. 
-(These are all simple with Javascript buttons and forms.)
-The main goals for you are to a) test at least three competing visualizations or experiment conditions, b) implement data/stimuli generation and error calculation functions (if following the baseline, use Cleveland and McGill's 1984 paper and Heer and Bostock's 2010 replication), c) run the experiment with 10 participants (or equivalent number of trials), and d) do basic analysis and reporting of the results.
+This experiment compares three conditions: a vertical bar chart, a single stacked bar, and a pie chart. It is based on the Cleveland and McGill graphical perception experiment.
 
-For this assignment you should aim to write everything from scratch. For experimentation it is often necessary to control all elements of the chart.
-You should definitely *reference* demo programs from books or the web, and if you do please provide a References section with links at the end of your Readme.
+## Hypotheses
 
-Going Beyond Cleveland-McGill
----
+1. **Bar chart:** Lowest average error, since the bars share a baseline.
+2. **Stacked bar:** Higher error, because users compare segment lengths at different positions.
+3. **Pie chart:** Highest error, because users compare angles.
 
-Several have expressed interest in conducting surveys of various sorts. I encourage you to move beyond Cleveland and McGill if you can think of other interesting visualization experiment designs and corresponding analyses. 
+## Design and procedure
 
-You might study how people interpret COVID visualizations or design an experiment on shapes or color, for example.
-If you decide to go in a custom route, do plan to sync with staff so we can help you set acceptable parameters that would be fair to folks following the original route.
+- A trial shows 5–10 randomly generated values between 1 and 100.
+- Two values are marked with black dots; the remaining values are distractors.
+- The participant estimates what percentage the smaller marked value is of the larger.
+- For each chart type, 20 randomized trials are shown (60 trials total).
+- Target ratios cover 5%, 10%, ..., 95% with one additional randomly chosen target per chart condition. Rounding may make the actual ratio differ slightly from the target; scoring always uses the actual ratio.
+- Conditions and trial order are shuffled for each participant.
+- No correctness feedback is shown between trials.
+- Each participant downloads one CSV at the end.
 
-(Basically, we still want you to do a multi-trial study with each participant, to raise the chance that you get solid results.)
+### Scoring
 
-How you measure "error" and similar facets also matter. But you can't go wrong with finding a good visualization study online to start from :)
+`true_percent = 100 * min(marked1, marked2) / max(marked1, marked2)`
 
-Requirements
----
+`absolute_error = abs(reported_percent - true_percent)`
 
-- Look over Cleveland and McGill's original experiment (see the section below) and [watch this video](https://www.loom.com/share/636660b72d00436a8ae910f91d67a0c7) to get a sense of the experiment structure and where your visualizations will go.
-- When viewing the example experiment video, note the following:
-    - Trials are in random order.  
-    - Each trial has a randomly generated set of 5-10 data points.  
-    - Two of these data points are marked.  
-    - (Note: the experiment UI and User Experience could be better. Plenty of design achievements here).
-- Implement the data generation code **as described in the Cleveland & McGill and Heer & Bostock papers**. 
-    - The goal is to generate a set of random datapoints (usually 5 or 10, with values be between 0 and 100) and to mark two of them for comparison in the trial. 
-- Add 3 visualizations (i.e. conditions) to your experiment. When you are adding these visualizations, think about *why* these visualizations are interesting to test. In other words, keep in mind a *testable hypothesis* for each of the added visualization. Some good options include bar charts, pie charts, stacked-bar charts, and treemaps. You can also rotate your bar chart to be horizontal or upside-down as one of your conditions. You are encouraged to test unorthodox charts -- radar charts come to mind, but there are MANY possibilities here-- feel free to be creative!
-    - Follow the style from Cleveland and McGill closely (e.g. no color, simple lines) unless you are specifically testing a hypothesis (e.g. color versus no color). Pay attention to spacing between elements like bars. Do not mark bars for comparison using color-- this makes the perceptual task too easy.
-- After each trial, implement code that grades and stores participant’s responses.
-- At the end of the experiment, to get the data, one easy option use Javascript to show the data from the current experiment\* (i.e. a comma separated list in a text box) and copy it into your master datafile. See the Background section below for an example of what this file should look like. (\*Alternately implement a server, if you're experienced with that sort of thing.)
+`log2_error = 0 if absolute_error == 0 else log2(absolute_error + 1/8)`
 
-** DATA SCIENTISTS! IT IS YOUR TIME TO SHINE **
+Percentages are represented on the 0–100 scale, not the 0–1 scale.
 
-- Figure out how to calculate "Error", the difference between the true percentage and the reported percentage.
-- Scale this error using Cleveland and McGill’s log-base-2 error equation. For details, see the background section (there’s a figure with the equation). This becomes your “Error” column in the output. Make sure you use whole percentages (not decimal) in the log-base-2 equation. Make sure you handle the case of when a person gets the exact percentage correct (log-base-2 of 1/8 is -3, it is better to set this to 0). 
-- Run your experiment with 10 or more participants, or-- make sure you get at least 200 trials **per visualization type** in total.  
-    - Grab friends or people in the class.   
-    - Run at least 20 trials per visualization type, per participant. This is to ensure that you cover the range of possible answers (e.g. 5%, 10%, ..., 95%)
-- Make sure to save the resulting CSV after each participant. Compile the results into a master csv file (all participants, all trials).
-- Produce a README with figures that shows the visualizations you tested and results, ordered by best performance to worst performance. Follow the modern Cleveland-McGill figure below -- though note that using names instead of icons is fine.
-- To obtain the ranking, calculate and report the average log2Error for each visualization across all trials and participants. This should be straightforward to do in a spreadsheet.
-- Use Bootstrapped 95\% confidence intervals for your error upper and lower bounds. Include these in your figures. Bootstrapped confidence intervals are easily implemented in R + ggplot2 using the `stat_summary` geom. You can also use Excel, Python, or many many other tools. Bootstrapped 95% CIs are **very** useful in modern experiment practice.
-- Include example images of each visualization as they appeared in your experiment (i.e. if you used a pie chart show the actual pie chart you used in the experiment along with the markings, not an example from Google Images).
+## Experiment screenshots
 
-## General Requirements
+- Bar chart: `img/bar.png`
+- Stacked bar: `img/stacked.png`
+- Pie chart: `img/pie.png`
 
-1. Your code should be forked from the GitHub repo and published with GitHub Pages.
-2. Your project should use d3 to build visualizations.
-3. Your writeup (readme.md in the repo) should contain the following:
+## Participant data and analysis
 
-- Working link to the experiment hosted on GitHub Pages or some other site.
-- Concise description and screenshot of your experiment.
-- Description of the technical achievements you attempted with this project.
-- Description of the design achievements you attempted with this project.
+Collect results from **10 participants**, with 20 trials per visualization per participant. This gives **200 trials per condition** (600 total). 
 
-Background
----
+1. Have each participant download their CSV.
+2. Put each file into the `results/` directory. Use unique IDs.
+3. Run `python analyze_results.py` from this project's folder.
+4. Insert `analysis/error_comparison.png` below.
 
-In 1984, William Cleveland and Robert McGill published the results of several controlled experiments that pitted bar charts against pies and stacked-bar variants. 
-Their paper, [Graphical Perception: Theory, Experimentation, and Application to the Development of Graphical Methods](https://doi.org/10.1080/01621459.1984.10478080) (Journal of the American Statistical Association, 1984), is considered a key paper in data visualization.
-Heer and Bostock replicated it online in 2010: [Crowdsourcing Graphical Perception](https://doi.org/10.1145/1753326.1753357) (CHI 2010).
-In particular, they ran a psychology-style experiment where users were shown a series of randomly-generated charts with two graphical elements marked like this:
+### Results
 
-![cleveland bar chart](img/cleveland-bar.png)
+**[Complete this section after real data have been collected.]**
 
-Participants were then asked, "What percentage is the smaller of the larger?". 
-This was repeated hundreds of time with varying data and charts. 
-By the end of the study, Cleveland and McGill had amassed a large dataset that looked like this:
+`![Mean log2 error and 95% bootstrap confidence intervals](analysis/error_comparison.png)`
 
-![cleveland table](img/cleveland-table.png)
 
-__Log-base-2 or "cm-error"__: The true percent is the actual percentage of the smaller to the larger, while the reported percent is what participants reported. 
-Cleveland and McGill recognized that their analyses would be biased if they took `abs(ReportedPercent – TruePercent)` as their score for error. 
-To compensate, they came up with a logarithmic scale for error with this equation:
+## Technical achievements
 
-![cleveland equation](img/cleveland-equation.png)
+- Implemented all three chart types with **D3** in a single HTML file.
+- Randomly generated values, chosen two unique marked elements, and randomized trial order.
+- Automatically calculated true percentages, absolute errors, and Cleveland–McGill log2 errors.
+- Recorded anonymous IDs, chart types, trial numbers, raw data, indices, estimates, and errors.
+- Added client-side CSV downloads and a separate Python analysis script for average errors and bootstrap confidence intervals.
 
-You’ll be implementing this error score as part of the lab. 
-(Hint: it’s not a trick question, this is just to familiarize you with the experiment protocol). 
-With this Cleveland-McGill error score you can better compare the performance of the charts you test to figure out which one performs the best.
+## Design achievements
 
-As a baseline, compare your average Error scores to the following chart, which include both Cleveland and McGill’s results as well as more recent extensions of this experiment (lower error indicates better performance, and error bars are bootstrapped [95% confidence intervals](https://en.wikipedia.org/wiki/Confidence_interval)):
+- Kept the charts in grayscale with identical black-dot markings, so color does not affect the comparison.
+- Used one question and one input field across all trials, changing only the visualization type.
+- Included instructions, a progress bar, numeric input validation, and a completion/download screen.
+- Avoided showing correctness feedback during the experiment, reducing the chance of learning across trials.
 
-![cleveland results](img/cleveland-results.png)
-
-GitHub Details
----
-
-- [Fork the GitHub repository](https://docs.github.com/en/pull-requests/how-tos/work-with-forks/fork-a-repo). You now have a copy associated with your username.
-- Make changes to index.html to fulfill the project requirements.
-- Turn on GitHub Pages for your fork and publish from the `main` branch (Settings → Pages; see [configuring a publishing source](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)).
-- Edit this README.md with a link to your GitHub Pages site, e.g. https://YourUsernameGoesHere.github.io/a3-experiment/
-- Replace this file (README.md) with your writeup and Design/Technical achievements.
-- To submit, make a [pull request from your fork](https://docs.github.com/en/pull-requests/how-tos/create-pull-requests/creating-a-pull-request-from-a-fork) on the original repository.
-- Name your submission using the following scheme: 
-```
-a3-FirstLastnameMember1-FirstLastnameMember2-FirstLastnameMember3-...
-```
