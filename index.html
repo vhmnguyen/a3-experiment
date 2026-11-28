@@ -1,9 +1,350 @@
 <!DOCTYPE html>
-<div id="container"></div>
-<script type="module">
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Comparing Values in Charts | CS 4804 Experiment</title>
+  <style>
+    body {
+      margin: 0;
+      background: #f5f6f8;
+      color: #242830;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    main {
+      max-width: 750px;
+      margin: 42px auto;
+      padding: 28px;
+      background: white;
+      border: 1px solid #e0e3e8;
+      border-radius: 12px;
+      box-shadow: 0 3px 15px rgba(0, 0, 0, 0.05);
+    }
+    h1 { font-size: 27px; margin-top: 0; }
+    h2 { font-size: 20px; }
+    p, li { line-height: 1.6; }
+    .muted { color: #606977; }
+    .hidden { display: none; }
+    .field-label { display: block; font-weight: bold; margin: 18px 0 7px; }
+    input {
+      box-sizing: border-box;
+      width: 260px;
+      max-width: 100%;
+      padding: 11px;
+      border: 1px solid #aab2bd;
+      border-radius: 6px;
+      font: inherit;
+    }
+    button {
+      margin-top: 18px;
+      padding: 11px 19px;
+      border: 0;
+      border-radius: 6px;
+      background: #24344d;
+      color: white;
+      font: inherit;
+      cursor: pointer;
+    }
+    button:hover { background: #364b69; }
+    .chart-box {
+      display: flex;
+      justify-content: center;
+      padding: 10px 0;
+      border: 1px solid #e2e6eb;
+      border-radius: 8px;
+      background: #fff;
+    }
+    svg { width: 100%; max-width: 620px; height: auto; }
+    .progress-track {
+      height: 8px;
+      background: #e8ecf0;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+    #progress-bar { height: 100%; width: 0%; background: #4e6583; }
+    .question { font-weight: bold; font-size: 18px; margin-bottom: 0; }
+    .note { font-size: 13px; color: #626b75; }
+    .message { margin-top: 10px; color: #a12626; }
+    @media (max-width: 700px) {
+      main { margin: 10px; padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section id="welcome">
+      <h1>Comparing Values in Charts</h1>
+      <p>In this study, you will compare two marked values in several charts.</p>
+      <ol>
+        <li>Look at the two values marked with <strong>black dots</strong>.</li>
+        <li>Estimate what percentage the smaller value is of the larger value.</li>
+        <li>Enter a number between 0 and 100 and click Submit.</li>
+      </ol>
+      <p class="muted">There are 60 questions. Please answer based on the chart, without using a calculator. You will not see the correct answers between trials.</p>
+      <label class="field-label" for="participant-id">Participant ID (for example, P01)</label>
+      <input id="participant-id" type="text" maxlength="30" autocomplete="off" placeholder="P01">
+      <p class="note">Use an anonymous ID instead of your name.</p>
+      <button id="start-button" type="button">Start experiment</button>
+      <p id="start-message" class="message" aria-live="polite"></p>
+    </section>
 
-import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+    <section id="experiment" class="hidden">
+      <p id="trial-number" class="muted"></p>
+      <div class="progress-track"><div id="progress-bar"></div></div>
+      <div class="chart-box">
+        <svg id="chart" viewBox="0 0 600 290" role="img" aria-label="Chart with two marked values"></svg>
+      </div>
+      <p class="question">What percentage is the smaller marked value of the larger marked value?</p>
+      <form id="answer-form">
+        <label class="field-label" for="answer">Your estimate (%)</label>
+        <input id="answer" type="number" min="0" max="100" step="any" required placeholder="Example: 45" autofocus>
+        <div><button type="submit">Submit answer</button></div>
+      </form>
+      <p class="note">Black dots show which two values to compare. All other values are distractors.</p>
+      <p id="answer-message" class="message" aria-live="polite"></p>
+    </section>
 
-console.log(d3);
+    <section id="finished" class="hidden">
+      <h1>Experiment complete</h1>
+      <p>Thank you! You have finished all 60 trials.</p>
+      <p><strong>Important:</strong> Click below to download your results CSV, then send that file to the researcher.</p>
+      <button id="download-button" type="button">Download my results (CSV)</button>
+      <p id="download-message" class="muted" aria-live="polite"></p>
+    </section>
+  </main>
 
-</script>
+  <script type="module">
+    import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+
+    const chartTypes = ["Bar chart", "Stacked bar", "Pie chart"];
+    const trialsPerChart = 20;
+    const targetPercents = d3.range(5, 100, 5); // 5, 10, ..., 95
+
+    let participantId = "";
+    let trials = [];
+    let responses = [];
+    let currentTrial = 0;
+
+    function randomNumber(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function shuffle(items) {
+      return d3.shuffle(items.slice());
+    }
+
+    // Generate 5-10 values and make two marked values have the target ratio.
+    function makeTrial(type, targetPercent) {
+      const count = randomNumber(5, 10);
+      const values = Array.from({ length: count }, () => randomNumber(10, 100));
+      const marked = shuffle(d3.range(count)).slice(0, 2);
+      const larger = randomNumber(55, 100);
+      const smaller = Math.max(1, Math.round(larger * targetPercent / 100));
+
+      if (Math.random() < 0.5) {
+        values[marked[0]] = smaller;
+        values[marked[1]] = larger;
+      } else {
+        values[marked[0]] = larger;
+        values[marked[1]] = smaller;
+      }
+
+      return { type, values, marked, targetPercent };
+    }
+
+    function makeExperiment() {
+      const allTrials = [];
+      for (const type of chartTypes) {
+        const ratios = targetPercents.slice();
+        ratios.push(targetPercents[randomNumber(0, targetPercents.length - 1)]);
+        for (const ratio of shuffle(ratios)) {
+          allTrials.push(makeTrial(type, ratio));
+        }
+      }
+      return shuffle(allTrials);
+    }
+
+    function mark(svg, x, y) {
+      svg.append("circle")
+        .attr("cx", x)
+        .attr("cy", y)
+        .attr("r", 6)
+        .attr("fill", "#111111")
+        .attr("stroke", "white")
+        .attr("stroke-width", 1.5);
+    }
+
+    function drawBars(svg, trial) {
+      const x = d3.scaleBand()
+        .domain(d3.range(trial.values.length))
+        .range([65, 535])
+        .padding(0.25);
+      const y = d3.scaleLinear().domain([0, 100]).range([247, 35]);
+
+      svg.append("line")
+        .attr("x1", 55).attr("x2", 545)
+        .attr("y1", 247).attr("y2", 247)
+        .attr("stroke", "#666");
+
+      svg.selectAll("rect.bar")
+        .data(trial.values)
+        .enter().append("rect")
+        .attr("class", "bar")
+        .attr("x", (d, i) => x(i))
+        .attr("y", d => y(d))
+        .attr("width", x.bandwidth())
+        .attr("height", d => 247 - y(d))
+        .attr("fill", "#b7bdc5")
+        .attr("stroke", "#4b535d");
+
+      for (const i of trial.marked) {
+        mark(svg, x(i) + x.bandwidth() / 2, y(trial.values[i]) - 7);
+      }
+    }
+
+    function drawStackedBar(svg, trial) {
+      const total = d3.sum(trial.values);
+      const scale = d3.scaleLinear().domain([0, total]).range([0, 490]);
+      const top = 107;
+      const height = 64;
+      let amountSoFar = 0;
+
+      trial.values.forEach((value, i) => {
+        const left = 55 + scale(amountSoFar);
+        const right = 55 + scale(amountSoFar + value);
+        svg.append("rect")
+          .attr("x", left).attr("y", top)
+          .attr("width", right - left).attr("height", height)
+          .attr("fill", "#b7bdc5")
+          .attr("stroke", "#4b535d")
+          .attr("stroke-width", 1.2);
+
+        if (trial.marked.includes(i)) {
+          mark(svg, (left + right) / 2, top + height / 2);
+        }
+        amountSoFar += value;
+      });
+    }
+
+    function drawPie(svg, trial) {
+      const center = svg.append("g").attr("transform", "translate(300,142)");
+      const pieces = d3.pie()
+        .sort(null)
+        .value(d => d.value)(trial.values.map((value, index) => ({ value, index })));
+      const slice = d3.arc().innerRadius(0).outerRadius(112);
+      const markerPosition = d3.arc().innerRadius(72).outerRadius(72);
+
+      center.selectAll("path")
+        .data(pieces)
+        .enter().append("path")
+        .attr("d", slice)
+        .attr("fill", "#b7bdc5")
+        .attr("stroke", "#4b535d")
+        .attr("stroke-width", 1.2);
+
+      for (const piece of pieces) {
+        if (trial.marked.includes(piece.data.index)) {
+          const [x, y] = markerPosition.centroid(piece);
+          mark(center, x, y);
+        }
+      }
+    }
+
+    function showTrial() {
+      const trial = trials[currentTrial];
+      document.getElementById("trial-number").textContent =
+        `Question ${currentTrial + 1} of ${trials.length}`;
+      document.getElementById("progress-bar").style.width =
+        `${100 * currentTrial / trials.length}%`;
+      document.getElementById("answer-message").textContent = "";
+      document.getElementById("answer").value = "";
+
+      const svg = d3.select("#chart");
+      svg.selectAll("*").remove();
+      if (trial.type === "Bar chart") drawBars(svg, trial);
+      if (trial.type === "Stacked bar") drawStackedBar(svg, trial);
+      if (trial.type === "Pie chart") drawPie(svg, trial);
+
+      document.getElementById("answer").focus();
+    }
+
+    document.getElementById("start-button").addEventListener("click", () => {
+      const id = document.getElementById("participant-id").value.trim();
+      if (!id) {
+        document.getElementById("start-message").textContent = "Please enter a participant ID.";
+        return;
+      }
+      participantId = id;
+      trials = makeExperiment();
+      responses = [];
+      currentTrial = 0;
+      document.getElementById("welcome").classList.add("hidden");
+      document.getElementById("experiment").classList.remove("hidden");
+      showTrial();
+    });
+
+    document.getElementById("answer-form").addEventListener("submit", event => {
+      event.preventDefault();
+      const reported = Number(document.getElementById("answer").value);
+      if (!Number.isFinite(reported) || reported < 0 || reported > 100) {
+        document.getElementById("answer-message").textContent = "Enter a number from 0 to 100.";
+        return;
+      }
+
+      const trial = trials[currentTrial];
+      const [a, b] = trial.marked.map(i => trial.values[i]);
+      const truePercent = 100 * Math.min(a, b) / Math.max(a, b);
+      const absoluteError = Math.abs(reported - truePercent);
+      const log2Error = absoluteError === 0 ? 0 : Math.log2(absoluteError + 1 / 8);
+
+      responses.push({
+        participant_id: participantId,
+        trial: currentTrial + 1,
+        chart_type: trial.type,
+        values: trial.values.join("|"),
+        marked_index_1: trial.marked[0],
+        marked_index_2: trial.marked[1],
+        true_percent: truePercent.toFixed(4),
+        reported_percent: reported,
+        absolute_error: absoluteError.toFixed(4),
+        log2_error: log2Error.toFixed(4)
+      });
+
+      currentTrial += 1;
+      if (currentTrial < trials.length) {
+        showTrial();
+      } else {
+        document.getElementById("experiment").classList.add("hidden");
+        document.getElementById("finished").classList.remove("hidden");
+      }
+    });
+
+    function downloadResults() {
+      const columns = [
+        "participant_id", "trial", "chart_type", "values", "marked_index_1",
+        "marked_index_2", "true_percent", "reported_percent",
+        "absolute_error", "log2_error"
+      ];
+      const csvValue = value => `"${String(value).replaceAll('"', '""')}"`;
+      const lines = [columns.join(",")];
+      for (const row of responses) {
+        lines.push(columns.map(column => csvValue(row[column])).join(","));
+      }
+      const blob = new Blob([lines.join("\r\n") + "\r\n"], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `experiment_${participantId.replace(/[^a-zA-Z0-9_-]/g, "_")}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      document.getElementById("download-message").textContent =
+        `Saved ${responses.length} responses. Please provide this file to the researcher.`;
+    }
+
+    document.getElementById("download-button").addEventListener("click", downloadResults);
+  </script>
+</body>
+</html>
